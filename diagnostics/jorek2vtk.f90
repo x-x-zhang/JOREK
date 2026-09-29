@@ -120,7 +120,7 @@ real*8                :: r0_real8, rn0_real8, lnA, r0_tmp
 real*8                :: T0_corr, r0_corr, rn0_corr, ne_JOREK, T_or_Te, T_or_Te_corr, T_or_Te_0 
 integer               :: i_imp, offset_bgimp, i_bg     ! Loop for more than one background impurity
 integer               :: i_proj
-integer               :: i_psin, i_test, iimp(6), i_ne, ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2), i_gvec(3), i_vac(3), i_saw
+integer               :: i_psin, i_test, iimp(6), i_ne, ineu(7), ibg_tot, i_pellet(2), i_flux(8), i_neo(10), i_boot(2), i_gvec(3), i_vac(3), i_saw, i_visco
 integer               :: i_full(11), i_vec_B, i_vec_V, i_vec_E, i_vec_Jpol, i_vec_gvec(3), i_vec_vac(2)
 integer, allocatable  :: iibg(:), iproj(:)
 character*36          :: imp_label, proj_label
@@ -437,6 +437,10 @@ endif
 if (include_saw_ene) then
   call add_vtk_entry('SAW_energy  ', 'SAW_ene_Jm-3 ',  i_saw, n_scalars, si_units, scalar_names)  ! SAW energy functional (linear MHD)
 endif
+
+! --- Perpendicular viscosity field (always included). In SI it is written as a kinematic
+!     diffusivity in m^2/s; it honours visco_kinematic (mu = rho*nu when active).
+call add_vtk_entry('visco       ', 'visco_m2/s  ',  i_visco, n_scalars, si_units, scalar_names)
 
 #ifdef fullmhd
   call add_vtk_entry('B_R         ', 'B_R         ',    i_full( 1), n_scalars, si_units, scalar_names) 
@@ -1429,6 +1433,30 @@ do i=1,element_list%n_elements
 
 enddo  ! n_elements
 
+! --- Perpendicular viscosity field for all nodes (always included). Mirrors the model
+!     treatment: visco(T) optionally scaled by the corrected density (mu = rho*nu) when
+!     visco_kinematic is active.
+do i=1,nnos
+  r0_real8 = scalars(i,var_rho)
+  if ( with_TiTe ) then
+    T_real8      = scalars(i,var_Te)
+    T_or_Te      = T_real8
+    T_or_Te_corr = corr_neg_temp(T_real8*2.d0)/2.d0
+    T_or_Te_0    = Te_0
+  else
+    T_real8      = scalars(i,var_T)
+    T_or_Te      = T_real8
+    T_or_Te_corr = corr_neg_temp(T_real8)
+    T_or_Te_0    = T_0
+  endif
+  call viscosity(visco, T_or_Te, T_or_Te_corr, T_or_Te_0, visco_T)
+  if ( visco_kinematic ) then
+    scalars(i,i_visco) = visco_T * corr_neg_dens1(r0_real8)
+  else
+    scalars(i,i_visco) = visco_T
+  endif
+enddo
+
 #if (!defined WITH_Impurities)
   if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h',trim(adas_dir)) !< for both include_radiation and include_neutral_dens
   if (include_radiation) then
@@ -1728,6 +1756,11 @@ if (SI_units) then
   !===========================================================real values=============
   rho_norm = central_density*1.d20 * central_mass * ATOMIC_MASS_UNIT
   t_norm   = sqrt(MU_zero*rho_norm)
+
+  !=================================== viscosity in SI (kinematic, m^2/s)
+  do i=1,nnos
+    scalars(i,i_visco) = scalars(i,i_visco) / t_norm
+  enddo
 
   !=================================================real values============
   do i=1,nnos

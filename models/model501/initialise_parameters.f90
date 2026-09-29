@@ -154,7 +154,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family, cte_current_FB_fact, treat_axis,  &
                 visco_par_heating, CARIDDI_mode,                    &
-                T_min_ZKpar,                                        &
+                T_min_ZKpar, T_min_eta,                             &
                 use_newton, maxNewton, gamma_Newton, alpha_Newton,  &
                 vacuum_min, strumpack_matching, xpoint_search_tries,&
                 use_manual_random_seed, manual_seed,                &

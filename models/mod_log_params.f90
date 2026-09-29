@@ -252,6 +252,8 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
   write(*,REAL_FMT) 'T_max_visco           ', T_max_visco
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
+  write(*,LOGI_FMT) 'visco_kinematic       ', visco_kinematic
+  write(*,LOGI_FMT) 'visco_par_kinematic   ', visco_par_kinematic
   write(*,LOGI_FMT) 'visco_old_setup       ', visco_old_setup
   write(*,REAL_FMT) 'visco                 ', visco
   write(*,REAL_FMT) 'visco_heating         ', visco_heating
@@ -646,6 +648,11 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
 
 
   write(*,LOGI_FMT) 'keep_current_prof     ', keep_current_prof
+  write(*,LOGI_FMT) 'keep_current_prof_confined', keep_current_prof_confined
+  write(*,LOGI_FMT) 'keep_current_mask_pfr_only', keep_current_mask_pfr_only
+  write(*,REAL_FMT) 'keep_current_psin_cutoff', keep_current_psin_cutoff
+  write(*,REAL_FMT) 'keep_current_psin_sig ', keep_current_psin_sig
+  write(*,REAL_FMT) 'keep_current_z_sig    ', keep_current_z_sig
   write(*,LOGI_FMT) 'init_current_prof     ', init_current_prof
   write(*,LOGI_FMT) 'current_prof_initialized', current_prof_initialized
   write(*,LOGI_FMT) 'linear_run            ', linear_run
@@ -680,6 +687,8 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
   write(*,REAL_FMT) 'T_min_ZKpar           ', T_min_ZKpar
   write(*,REAL_FMT) 'Ti_min_ZKpar          ', Ti_min_ZKpar
   write(*,REAL_FMT) 'Te_min_ZKpar          ', Te_min_ZKpar
+  write(*,REAL_FMT) 'T_min_eta             ', T_min_eta
+  write(*,LOGI_FMT) 'diamag_heat_conv      ', diamag_heat_conv
   write(*,REAL_FMT) 'ne_SI_min             ', ne_SI_min
   write(*,REAL_FMT) 'Te_eV_min             ', Te_eV_min
   write(*,REAL_FMT) 'implicit_heat_source  ', implicit_heat_source

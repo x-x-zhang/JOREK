@@ -24,6 +24,8 @@ module phys_module
   real*8  :: visco_par_rst        !< visco_par value from restart file
   real*8  :: eta_rst              !< eta value from restart file
   logical :: visco_T_dependent    !< Viscosity dependent on temperature? Otherwise constant.
+  logical :: visco_kinematic      !< If true, 'visco' is interpreted as a kinematic viscosity: the perpendicular viscous term is scaled by the local (corrected) mass density (mu = rho*nu). Otherwise 'visco' is the dynamic viscosity.
+  logical :: visco_par_kinematic  !< If true, 'visco_par' is interpreted as a kinematic viscosity: the cross-field viscous term acting on the parallel flow is scaled by the local (corrected) mass density (mu = rho*nu). Otherwise 'visco_par' is the dynamic viscosity.
   logical :: visco_old_setup      !< If true, the old perp. viscosity treatment is used for compatibility (old visco depends on R^2)
   real*8  :: visco_par            !< Cross B-field viscosity acting on parallel flow (normalized)
   real*8  :: visco_par_par        !< B-field Parallel viscosity acting on parallel flow (normalized)
@@ -39,6 +41,7 @@ module phys_module
   real*8  :: sigma                !< (model400)
   real*8  :: tauIC                !< Scaling factor for diamagnetic terms (see [[diamag|diamagnetic]])
   real*8  :: tauIC_nominal        !< Nominal scaling factor (considering Ti=Te) for diamagnetic terms (see [[diamag|diamagnetic]])
+  logical :: diamag_heat_conv     !< Include the diamagnetic (grad-B/curvature drift) heat convection terms in the temperature equations (two-temperature model only; net term vanishes for Ti=Te)
   real*8  :: eta_spitzer          !< Spitzer resistivity in the core (considering main ion charge Z=1, effective ion charge Zeff=1)
   real*8  :: lnA_center           !< Coulomb logarithm in the core (used for the resistivity function)
   logical :: Wdia                 !< Include diamagnetic flows in viscosity terms? (see [[wdia|here]])
@@ -643,6 +646,7 @@ module phys_module
   real*8  :: T_min_ZKpar          !< Do not use smaller parallel heat diffusion values below this MHD temperature (Ti+Te); JOREK units
   real*8  :: Ti_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Ti; JOREK units
   real*8  :: Te_min_ZKpar         !< Do not use smaller parallel heat diffusion values below Te; JOREK units
+  real*8  :: T_min_eta            !< Do not use larger resistivity / hyper-resistivity values below this temperature (floor of the eta(T) and eta_num(T) dependencies); defaults to T_min; JOREK units
   real*8  :: ZK_par_SpitzerHaerm  !< Spitzer-Haerm parallel heat diffusion value in the plasma center (assuming a Z=1 plasma with Te=Ti)
   real*8  :: ZK_i_perp(10) = 0.d0 !< Coefficients for perpendicular ion heat diffusion profile
   real*8  :: ZK_e_perp(10) = 0.d0 !< Coefficients for perpendicular electron heat diffusion profile
@@ -907,6 +911,11 @@ module phys_module
 
   !> @name Flag to determine whether or not we keep current source term  
   logical             :: keep_current_prof !< Artificial current source to approximately keep the initial current profile, i.e., \f$\eta(j-j0)\f$?
+  logical             :: keep_current_prof_confined !< Restrict the keep_current_prof source to the confined region via smooth tanh masks (suppressed in SOL and private flux region)
+  real*8              :: keep_current_psin_cutoff   !< Center of the tanh mask in psi_N for keep_current_prof_confined
+  real*8              :: keep_current_psin_sig      !< Width of the tanh mask in psi_N for keep_current_prof_confined
+  real*8              :: keep_current_z_sig         !< Width of the tanh mask in Z beyond the X-point(s) for keep_current_prof_confined (masks the private flux region where psi_N < 1)
+  logical             :: keep_current_mask_pfr_only !< With keep_current_prof_confined: suppress the source only in the private flux region (psi_N < cutoff AND beyond the X-point); confined region and SOL (including the legs) keep the source
   logical             :: init_current_prof !< Initialize the current source from the current profile present
   logical             :: current_prof_initialized !< Flag that is automatically set to true once the current source has been initialized to prevent accidental reinitialization when restarting
   

@@ -21,6 +21,9 @@ integer :: ierr,err,i
 ! --- Namelist with input parameters.
 namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 rst_hdf5, rst_hdf5_version, keep_current_prof,      &
+                keep_current_prof_confined, keep_current_psin_cutoff, &
+                keep_current_psin_sig, keep_current_z_sig,          &
+                keep_current_mask_pfr_only,                         &
                 eta, visco, visco_par, visco_par_par,               &
                 restart, rst_format, regrid, bootstrap, write_ps,   &
                 bootstrap_psin_cutoff,                              &
@@ -116,7 +119,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 refinement, force_central_node,                     &
                 fix_axis_nodes,                                     &
                 adaptive_time, equil, bench_without_plot,           &
-                eta_T_dependent, visco_T_dependent, T_max_visco,    &
+                eta_T_dependent, visco_T_dependent, visco_kinematic,                 &
+                visco_par_kinematic, T_max_visco,                                     &
                 zkpar_T_dependent, T_max_eta, T_max_eta_ohm,        & 
                 heatsource_psin, heatsource_sig,                    &
                 heatsource_e_psin, heatsource_e_sig,                &
@@ -217,7 +221,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 eta_num_prof, eta_num_psin_dependent, D_par_imp,    &
                 D_perp_imp, spi_quantity_bg, pellet_density_bg,     &
                 visco_par_heating, constant_imp_source,             &
-                T_min_ZKpar,Ti_min_ZKpar,Te_min_ZKpar,              &
+                T_min_ZKpar,Ti_min_ZKpar,Te_min_ZKpar,T_min_eta,    &
+                diamag_heat_conv,                                   &
                 CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
                 alpha_Newton, vacuum_min, strumpack_matching,       &
                 visco_old_setup, visco_heating, eta_coul_log_dep,   &

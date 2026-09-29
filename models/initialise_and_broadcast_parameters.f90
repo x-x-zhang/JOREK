@@ -54,10 +54,13 @@ subroutine initialise_and_broadcast_parameters(my_id, filename, init_particles)
   call initialise_reference_parameters()
 
   ! --- Assign minimum values for parallel conduction if not given
-  if (T_min_ZKpar  < -1.d10) T_min_ZKpar  = T_min   
-  if (Ti_min_ZKpar < -1.d10) Ti_min_ZKpar = T_min   
-  if (Te_min_ZKpar < -1.d10) Te_min_ZKpar = T_min   
-  
+  if (T_min_ZKpar  < -1.d10) T_min_ZKpar  = T_min
+  if (Ti_min_ZKpar < -1.d10) Ti_min_ZKpar = T_min
+  if (Te_min_ZKpar < -1.d10) Te_min_ZKpar = T_min
+
+  ! --- Assign minimum value for the resistivity temperature dependence if not given
+  if (T_min_eta    < -1.d10) T_min_eta    = T_min
+
   ! --- Deprecated input parameters ---
   if ( use_murge ) then
     write(*,*) 'ERROR: use_murge=.true. is not supported any more. Remove this parameter from the namelist input file.'

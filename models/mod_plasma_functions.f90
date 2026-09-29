@@ -46,9 +46,12 @@ module mod_plasma_functions
     eta_Spitzer        = ( 1.65d-9 * lnA_center * Te0_keV**(-1.5d+0) ) / sqrt_mu0_over_rho0
 
     ! --- Assign minimum values for parallel conduction if not given
-    if (T_min_ZKpar  < -1.d10) T_min_ZKpar  = T_min   
-    if (Ti_min_ZKpar < -1.d10) Ti_min_ZKpar = T_min   
-    if (Te_min_ZKpar < -1.d10) Te_min_ZKpar = T_min   
+    if (T_min_ZKpar  < -1.d10) T_min_ZKpar  = T_min
+    if (Ti_min_ZKpar < -1.d10) Ti_min_ZKpar = T_min
+    if (Te_min_ZKpar < -1.d10) Te_min_ZKpar = T_min
+
+    ! --- Assign minimum value for the resistivity temperature dependence if not given
+    if (T_min_eta    < -1.d10) T_min_eta    = T_min
 
   
   end subroutine initialise_reference_parameters
@@ -179,8 +182,8 @@ module mod_plasma_functions
       eta_T     = eta_0
     end if
 
-    if ( eta_T_dependent .and. (T_raw .lt. T_min) ) then
-      eta_T       = eta_0     * (T_min/T0)**(-1.5d0)
+    if ( eta_T_dependent .and. (T_raw .lt. T_min_eta) ) then
+      eta_T       = eta_0     * (T_min_eta/T0)**(-1.5d0)
       if (present(deta_dT))     deta_dT    = 0.d0
       if (present(d2eta_d2T))   d2eta_d2T  = 0.d0
     endif
@@ -258,8 +261,8 @@ module mod_plasma_functions
     else if ( eta_num_T_dependent ) then
       eta_num_T     =   eta_num   * (T_corr/T0)**(-3.d0)
       if (present(deta_num_dT))  deta_num_dT   = - eta_num   * (3.d0)  * T_corr**(-4.d0) * T0**(3.d0)
-      if (T_raw .lt. T_min) then
-        eta_num_T     = eta_num    * (T_min/T0)**(-3.d0)
+      if (T_raw .lt. T_min_eta) then
+        eta_num_T     = eta_num    * (T_min_eta/T0)**(-3.d0)
         if (present(deta_num_dT)) deta_num_dT   = 0.d0
       endif
     else

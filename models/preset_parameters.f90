@@ -27,6 +27,8 @@ subroutine preset_parameters
   eta_T_dependent   = .true.
   eta_coul_log_dep  = .true.
   visco_T_dependent = .true.
+  visco_kinematic   = .false.
+  visco_par_kinematic = .false.
   ZKpar_T_dependent = .true.
 
   eta_num_T_dependent   = .false.
@@ -282,7 +284,8 @@ subroutine preset_parameters
   T_min_neg          = -1.d12 !< only used if T_min_neg>0 , 2.01d-5*central_density*Tmin_ev (cd = 1, 20 eV)
   T_min_ZKpar        = -1.d12 
   Ti_min_ZKpar       = -1.d12 
-  Te_min_ZKpar       = -1.d12 
+  Te_min_ZKpar       = -1.d12
+  T_min_eta          = -1.d12
   rho_min_neg        = -1.d12
   
   implicit_heat_source = 0.d0
@@ -508,6 +511,7 @@ subroutine preset_parameters
   U_sheath = .false.
   renormalise = .false.
   tauIC = 0.d0
+  diamag_heat_conv = .false.
   Wdia  = .false.
 
   zjz_0 =  0.1173d0   
@@ -653,6 +657,11 @@ subroutine preset_parameters
   tgnum_A3           = 0.d0
 
   keep_current_prof  = .true.               ! Keep the current_source term
+  keep_current_prof_confined = .false.      ! Apply the current_source term only in the confined region
+  keep_current_psin_cutoff   = 0.98d0
+  keep_current_psin_sig      = 0.01d0
+  keep_current_z_sig         = 0.02d0
+  keep_current_mask_pfr_only = .false.      ! Suppress the source only in the private flux region
   init_current_prof  = .false.
   current_prof_initialized = .false.
   
