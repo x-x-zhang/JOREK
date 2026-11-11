@@ -13,6 +13,7 @@ module mod_particle_recomb
   contains
 
   subroutine do_1particle_recombination(element_list,node_list,target_group,jorek_stepper,rng,tstep_fluid_si)
+    use, intrinsic :: iso_fortran_env, only: output_unit
     use mod_jorek_timestepping !< gives us access to sim?
     use mod_integrate_recomb, only : integrate_recombination
     use phys_module, only: use_manual_random_seed, central_density, central_mass, sqrt_mu0_over_rho0
@@ -35,9 +36,8 @@ module mod_particle_recomb
     real*8        :: total_Erec_neutral,total_Erec_neutral_all, total_Erec_rad,total_Erec_rad_all
     real*8, dimension(n_plane) :: total_rec_nplane, total_volume_nplane, total_rec_nplane_all, total_volume_nplane_all
     integer       :: n_free, i, j, k,ielm,ife, i_rng, ierr, mp
-    ! slot number (in i_free) of the first particle of each (element, plane) cell, 0 = cell creates no particle
-    integer, allocatable, dimension(:,:) :: i_slot
-    integer       :: n_needed, n_short, n_short_max, n_left, n_left_min, n_needed_all
+    integer, allocatable, dimension(:,:) :: i_slot !< first index in i_free, or zero for an inactive cell
+    integer       :: n_needed, n_needed_all, n_left, n_left_min
     real*8        :: s, t,R, Z, phi_plane, delta_phi, phi_ran(2)
   
     !debug rec
@@ -93,64 +93,57 @@ module mod_particle_recomb
     end if
   
     allocate(is_free(size(sim%groups(target_group)%particles,1))) 
-    !$omp parallel do default(none) shared(sim, n_free, i_free, is_free, target_group) &
+    !$omp parallel do default(none) shared(sim, is_free, target_group) &
     !$omp private(j) schedule(runtime)
       do j=1,size(sim%groups(target_group)%particles,1) 
         is_free(j) = sim%groups(target_group)%particles(j)%i_elm .le. 0  !< array T/F is particle is free
       end do
     !$omp end parallel do
-    !$omp barrier
     n_free = count(is_free)
-    allocate(i_free(n_free))
-    k = 1
-    do j=1,size(is_free,1)
-      if (is_free(j)) then
-        i_free(k) = j !< i_free(k) has index of free particle in  sim%groups(target_group)%particles(j)
-        k = k+1
-      end if
-    end do
-    ! ==================
-    particles_per_element = 1
 
-    ! Pre-pass: give every cell that will create particles its own consecutive slots
-    ! in i_free (1..n_needed), so the number of slots needed is known BEFORE anything is written.
-    ! The two skip conditions are the same as in the creation loop below.
-    allocate(i_slot(size(rec_rate_local,1), n_plane))
-    i_slot   = 0
-    n_needed = 0
-    do ife = 1, size(rec_rate_local,1)
-      do mp = 1, n_plane
-        if (isnan(rec_v_R(ife,mp)) .or. isnan(rec_v_Z(ife,mp)) .or. isnan(rec_v_phi(ife,mp))) cycle
-        if (rec_rate_local(ife,mp) * central_density * 1.d20 .le. (1.d3/n_plane)) cycle
-        i_slot(ife,mp) = n_needed + 1
-        n_needed       = n_needed + particles_per_element
-      end do
-    end do
-
-    ! Free-slot check. All ranks take the same decision, so they stop together and nothing is written
-    ! outside i_free (without this check, i_free(k) with k > n_free gives a wild write and a segfault).
-    n_short = max(0, n_needed - n_free)
-    n_left  = n_free - n_needed
-    call MPI_ALLREDUCE(n_short,  n_short_max,  1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
-    call MPI_REDUCE   (n_left,   n_left_min,   1, MPI_INTEGER, MPI_MIN, 0, MPI_COMM_WORLD, ierr)
-    call MPI_REDUCE   (n_needed, n_needed_all, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-    if (sim%my_id .eq. 0) write(*,'(A,I12,A,I12)') ' recombination: new particles (all ranks) = ', n_needed_all, &
-                                                   ' | min free slots left on a rank = ', n_left_min
-    if (n_short .gt. 0) write(*,'(A,I6,A,I12,A,I12,A,I12)') ' ERROR recombination: rank ', sim%my_id, ' needs ', n_needed, &
-                                                         ' free particle slots, has ', n_free, ', short by ', n_short
-    if (n_short_max .gt. 0) then
-      if (sim%my_id .eq. 0) write(*,*) 'ERROR recombination: not enough free particle slots on at least one rank.', &
-                                       ' Increase part_group_configs(..)%n_particles (or rebalance the particle restart file).', &
-                                       ' Stopping before any particle memory is overwritten.'
-      call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
-    end if
-
-    delta_phi     = 2.d0 * PI / real(n_plane,8) / real(n_period,8)
-
-    ! loop over all elements
-    k = 0 !< first free particle
     select type (particles => sim%groups(target_group)%particles)
     type is (particle_kinetic_leapfrog)
+      particles_per_element = 1
+      delta_phi = 2.d0 * PI / real(n_plane,8) / real(n_period,8)
+
+      ! Assign consecutive slots only to cells that create particles.
+      allocate(i_slot(size(rec_rate_local,1), n_plane))
+      i_slot = 0
+      n_needed = 0
+      do ife = 1, size(rec_rate_local,1)
+        do mp = 1, n_plane
+          if (isnan(rec_v_R(ife,mp)) .or. isnan(rec_v_Z(ife,mp)) .or. isnan(rec_v_phi(ife,mp))) cycle
+          if (rec_rate_local(ife,mp) * central_density * 1.d20 .le. (1.d3/n_plane)) cycle
+          i_slot(ife,mp) = n_needed + 1
+          n_needed = n_needed + particles_per_element
+        end do
+      end do
+
+      ! Check every rank before writing any recombined particles.
+      n_left = n_free - n_needed
+      call MPI_ALLREDUCE(n_left, n_left_min, 1, MPI_INTEGER, MPI_MIN, MPI_COMM_WORLD, ierr)
+      if (n_left_min .lt. 0) then
+        if (n_left .lt. 0) write(*,'(A,I0,A,I0,A,I0)') 'ERROR: recombination on rank ', sim%my_id, &
+                                                       ' needs free particle slots: ', n_needed, ', available: ', n_free
+        if (sim%my_id .eq. 0) write(*,*) 'ERROR: Increase n_particles or rebalance the particle restart file.'
+        flush(output_unit)
+        call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        call MPI_ABORT(MPI_COMM_WORLD, 1, ierr)
+        return
+      end if
+      call MPI_REDUCE(n_needed, n_needed_all, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+      if (sim%my_id .eq. 0) write(*,'(A,I12,A,I12)') ' recombination: new particles (all ranks) = ', n_needed_all, &
+                                                     ' | min free slots left on a rank = ', n_left_min
+
+      allocate(i_free(n_needed))
+      k = 0
+      do j = 1, size(is_free)
+        if (k .eq. n_needed) exit
+        if (.not. is_free(j)) cycle
+        k = k + 1
+        i_free(k) = j
+      end do
+
       if(use_manual_random_seed) then
         !$ call omp_set_schedule(omp_sched_static,10)
       else
@@ -178,18 +171,12 @@ module mod_particle_recomb
           element = element_list%element(ielm)
           
           do mp = 1, n_plane
-            if (isnan(rec_v_R(ife,mp)) .or. isnan(rec_v_Z(ife,mp)) .or. isnan(rec_v_phi(ife,mp))) CYCLE !NaN check
-            if (rec_rate_local(ife,mp) * central_density * 1.d20 .le. (1.d3/n_plane)) CYCLE
-    
-            phi_plane     = delta_phi * (mp-1)
-            
-            if (i_slot(ife,mp) .eq. 0) CYCLE   ! same cells as the two CYCLE lines above
-            !< every MPI process has it's own list of i_free.
-
+            if (i_slot(ife,mp) .eq. 0) cycle
+            phi_plane = delta_phi * (mp-1)
 
             ! initialise particle in the element with Position, Weight, Energy, Momentum
             do i = 1, particles_per_element
-              k = i_slot(ife,mp) + (i-1)   !< free-slot index of this particle
+              k = i_slot(ife,mp) + i - 1
               particles(i_free(k))%weight = rec_rate_local(ife,mp) / real(particles_per_element,8)* central_density* 1.d20 !< rec_rate = in jorek units?
               particles(i_free(k))%i_elm  = ielm  !x, i_elm, st
               particles(i_free(k))%q    = 0
@@ -220,7 +207,6 @@ module mod_particle_recomb
       !$omp end parallel do
     end select
     !end omp
-    deallocate(i_slot)
   
     call MPI_REDUCE(sanity_rec_local, total_sanity_rec, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     if (sim%my_id .eq. 0) then
